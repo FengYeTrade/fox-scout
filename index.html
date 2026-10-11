@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>佛伯乐 · 数字足迹侦察兵 FOX SCOUT</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#05070f; --bg2:#0a0e1a; --panel:#0e1424; --panel2:#121a2e; --line:#1c2a47;
+  --cyan:#00e5ff; --green:#00ff9d; --pink:#ff2e97; --purple:#a855f7; --yellow:#ffd60a;
+  --txt:#e8f1ff; --dim:#7c8db5; --danger:#ff4d6d; --ok:#00ff9d;
+  --mono:"JetBrains Mono","Fira Code","Cascadia Code",Consolas,"Courier New",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  background:var(--bg);color:var(--txt);overflow-x:hidden;user-select:none;
+}
+.mono{font-family:var(--mono)}
+/* ===== 背景层 ===== */
+.bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,229,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.045) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 20%,black 20%,transparent 80%)}
+.glow{position:fixed;border-radius:50%;filter:blur(110px);opacity:.3;pointer-events:none;z-index:0}
+.glow-a{width:460px;height:460px;background:var(--cyan);top:-160px;left:-140px;animation:drift 16s ease-in-out infinite}
+.glow-b{width:420px;height:420px;background:var(--purple);bottom:-180px;right:-140px;animation:drift 21s ease-in-out infinite reverse}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,40px)}}
+.scanline{position:fixed;left:0;right:0;height:120px;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(0,229,255,.04),transparent);
+  animation:scan 7s linear infinite}
+@keyframes scan{0%{top:-15%}100%{top:115%}}
+/* ===== 布局 ===== */
+.app{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:0 16px 60px}
+/* ===== 导航 ===== */
+nav{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;margin-right:auto}
+.logo .mark{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:20px;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));box-shadow:0 0 20px rgba(0,229,255,.35)}
+.logo h1{font-size:17px;font-weight:800;letter-spacing:1px}
+.logo h1 em{font-style:normal;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo small{display:block;font-size:10px;color:var(--dim);letter-spacing:3px;margin-top:2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--dim);background:transparent;
+  border:1px solid transparent;border-radius:8px;padding:8px 14px;cursor:pointer;transition:.2s;min-height:36px}
+.tab:hover{color:var(--txt);border-color:var(--line)}
+.tab.on{color:var(--cyan);border-color:var(--cyan);background:rgba(0,229,255,.07);box-shadow:0 0 14px rgba(0,229,255,.18)}
+/* ===== 视图 ===== */
+.view{display:none;padding-top:22px}
+.view.on{display:block;animation:fadeIn .35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* ===== Hero / 侦察终端 ===== */
+.hero{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:0 0 46px rgba(0,229,255,.1);margin-bottom:20px}
+.hero img{width:100%;display:block;aspect-ratio:16/7;object-fit:cover;object-position:center}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,7,15,.15),rgba(5,7,15,.72))}
+.hero .hero-txt{position:absolute;left:24px;bottom:20px;right:24px}
+.hero .hero-txt .tag{font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:2px;margin-bottom:6px;text-shadow:0 0 12px rgba(0,255,157,.8)}
+.hero .hero-txt h2{font-size:26px;font-weight:900;letter-spacing:2px;line-height:1.3}
+.hero .hero-txt h2 em{font-style:normal;color:var(--cyan);text-shadow:0 0 22px rgba(0,229,255,.8)}
+.hero .hero-txt p{font-size:12px;color:#c8d6f0;margin-top:6px;letter-spacing:1px}
+.term{background:var(--bg2);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:20px;
+  box-shadow:0 0 30px rgba(0,0,0,.5),inset 0 0 40px rgba(0,0,0,.4)}
+.term-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.term-head .dot{width:11px;height:11px;border-radius:50%}
+.term-head .dot.r{background:#ff5f57}.term-head .dot.y{background:#febc2e}.term-head .dot.g{background:#28c840}
+.term-head .title{margin-left:8px;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:1px}
+.term-body{padding:20px 18px}
+.cmd-line{font-family:var(--mono);font-size:13px;color:var(--dim);letter-spacing:1px;margin-bottom:14px}
+.cmd-line b{color:var(--green);font-weight:400}
+.cmd-line .caret{display:inline-block;width:8px;height:14px;background:var(--cyan);vertical-align:middle;margin-left:3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.input-row{display:flex;gap:10px;flex-wrap:wrap}
+.input-wrap{flex:1;min-width:220px;position:relative}
+.input-wrap label{position:absolute;left:12px;top:-8px;font-family:var(--mono);font-size:10px;color:var(--cyan);
+  background:var(--bg2);padding:0 6px;letter-spacing:1px}
+.input-wrap input{width:100%;font-family:var(--mono);font-size:14px;color:var(--txt);background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:13px 12px 12px;outline:none;transition:.2s;min-height:46px}
+.input-wrap input:focus{border-color:var(--cyan);box-shadow:0 0 14px rgba(0,229,255,.25)}
+.btn{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:2px;color:#04121a;border:none;border-radius:10px;
+  padding:13px 26px;cursor:pointer;background:linear-gradient(135deg,var(--cyan),var(--purple));
+  box-shadow:0 0 22px rgba(0,229,255,.35);transition:.18s;min-height:46px}
+.btn:active{transform:scale(.96)}
+.btn.ghost{background:var(--panel);color:var(--txt);border:1px solid var(--line);box-shadow:none}
+.btn.small{padding:9px 16px;font-size:12px;min-height:38px}
+.hint-line{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:14px;letter-spacing:.5px;line-height:1.8}
+.hint-line .ok{color:var(--green)}
+.hint-line .warn{color:var(--yellow)}
+.hint-line .bad{color:var(--danger)}
+/* ===== 报告 ===== */
+.section-title{display:flex;align-items:center;gap:10px;margin:26px 0 14px}
+.section-title .bar{width:4px;height:18px;background:linear-gradient(180deg,var(--cyan),var(--purple));border-radius:2px;box-shadow:0 0 10px rgba(0,229,255,.6)}
+.section-title h3{font-size:17px;font-weight:800;letter-spacing:2px}
+.section-title .sub{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:2px;margin-left:6px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--cyan),transparent);opacity:.6}
+.card h4{font-size:13px;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.card h4 .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:13px;
+  background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3)}
+.chart{width:100%;height:250px}
+.chart.small{height:200px}
+/* 评分条 */
+.score-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.score-row .name{width:88px;font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:1px;flex-shrink:0}
+.score-bar{flex:1;height:10px;background:var(--bg2);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.score-bar i{display:block;height:100%;border-radius:6px;transition:width .6s ease;background:linear-gradient(90deg,var(--green),var(--cyan))}
+.score-bar i.mid{background:linear-gradient(90deg,var(--yellow),var(--orange,var(--pink)))}
+.score-bar i.high{background:linear-gradient(90deg,var(--pink),var(--danger))}
+.score-row .val{width:44px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700}
+.score-row .val.good{color:var(--green)}.score-row .val.warn{color:var(--yellow)}.score-row .val.bad{color:var(--danger)}
+.big-score{text-align:center;padding:8px 0 4px}
+.big-score .num{font-family:var(--mono);font-size:52px;font-weight:900;line-height:1}
+.big-score .num.good{color:var(--green);text-shadow:0 0 30px rgba(0,255,157,.5)}
+.big-score .num.warn{color:var(--yellow);text-shadow:0 0 30px rgba(255,214,10,.5)}
+.big-score .num.bad{color:var(--danger);text-shadow:0 0 30px rgba(255,77,109,.5)}
+.big-score .lbl{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:8px}
+.big-score .verdict{font-size:13px;letter-spacing:1px;margin-top:10px;line-height:1.8;color:#c8d6f0}
+/* 标签 */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chip{font-family:var(--mono);font-size:11px;letter-spacing:.5px;padding:5px 10px;border-radius:7px;
+  border:1px solid var(--line);background:var(--bg2);color:var(--dim)}
+.chip.hit{border-color:var(--pink);color:var(--pink);box-shadow:0 0 10px rgba(255,46,151,.2)}
+/* 表格 */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.tbl td{padding:9px 10px;border-bottom:1px solid rgba(28,42,71,.5);font-size:12px;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:5px;letter-spacing:1px}
+.badge.leak{background:rgba(255,77,109,.15);color:var(--danger);border:1px solid rgba(255,77,109,.4)}
+.badge.safe{background:rgba(0,255,157,.12);color:var(--green);border:1px solid rgba(0,255,157,.35)}
+/* ===== 手法库 ===== */
+.attack-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.attack-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:.2s}
+.attack-card:hover{border-color:var(--cyan);box-shadow:0 0 20px rgba(0,229,255,.15)}
+.attack-card .no{font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:2px;margin-bottom:8px}
+.attack-card h4{font-size:15px;letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.attack-card p{font-size:12px;color:#c8d6f0;line-height:1.8;margin-bottom:10px}
+.attack-card .guard{font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:.5px;line-height:1.9;
+  border-left:2px solid var(--green);padding-left:10px;background:rgba(0,255,157,.05);border-radius:0 8px 8px 0}
+.attack-card .guard b{color:var(--green)}
+/* ===== 防护清单 ===== */
+.check-list{display:flex;flex-direction:column;gap:8px}
+.check-item{display:flex;align-items:flex-start;gap:12px;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:13px 14px;cursor:pointer;transition:.2s;font-size:13px;line-height:1.6}
+.check-item:hover{border-color:var(--cyan)}
+.check-item .cb{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);flex-shrink:0;margin-top:1px;display:grid;place-items:center;font-size:11px;color:#04121a;transition:.15s}
+.check-item.done .cb{background:var(--green);border-color:var(--green)}
+.check-item.done{opacity:.75}
+.check-item.done .txt{text-decoration:line-through}
+.check-item .txt b{color:var(--cyan)}
+.prio{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:5px;margin-right:8px;letter-spacing:1px;flex-shrink:0}
+.prio.P0{background:rgba(255,77,109,.18);color:var(--danger);border:1px solid rgba(255,77,109,.4)}
+.prio.P1{background:rgba(255,214,10,.14);color:var(--yellow);border:1px solid rgba(255,214,10,.35)}
+.prio.P2{background:rgba(0,229,255,.12);color:var(--cyan);border:1px solid rgba(0,229,255,.3)}
+/* ===== 合规横幅 ===== */
+.comply{display:flex;gap:10px;align-items:flex-start;background:rgba(255,214,10,.06);border:1px solid rgba(255,214,10,.25);
+  border-radius:12px;padding:12px 14px;margin:26px 0 0;font-size:12px;color:#d8c77a;line-height:1.8}
+.comply .ic{font-size:16px;flex-shrink:0;margin-top:1px}
+footer{border-top:1px solid var(--line);margin-top:34px;padding:20px 0 8px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:1px;line-height:2}
+footer b{color:var(--cyan)}
+/* ===== 响应式 ===== */
+@media (max-width:760px){
+  .grid-2{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr}
+  .attack-grid{grid-template-columns:1fr}
+  .hero .hero-txt h2{font-size:19px}
+  .hero .hero-txt p{font-size:11px}
+  .hero img{aspect-ratio:16/10}
+  .tabs{width:100%;justify-content:flex-start}
+  .tab{flex:1;text-align:center;padding:9px 4px;font-size:11px}
+  .input-row{flex-direction:column}
+  .btn{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="glow glow-a"></div>
+<div class="glow glow-b"></div>
+<div class="scanline"></div>
+
+<div class="app">
+  <!-- ===== 导航 ===== -->
+  <nav>
+    <div class="logo">
+      <div class="mark">🦊</div>
+      <div>
+        <h1>佛伯乐 <em>FOX SCOUT</em></h1>
+        <small>DIGITAL FOOTPRINT SCOUT · 2026</small>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-view="v-term">侦察终端</button>
+      <button class="tab" data-view="v-report">分析报告</button>
+      <button class="tab" data-view="v-attack">攻击手法</button>
+      <button class="tab" data-view="v-guard">防护指南</button>
+    </div>
+  </nav>
+
+  <!-- ===== 视图：侦察终端 ===== -->
+  <section class="view on" id="v-term">
+    <div class="hero">
+      <img src="assets/hero.jpg" alt="FOX SCOUT 数字足迹侦察兵">
+      <div class="shade"></div>
+      <div class="hero-txt">
+        <div class="tag">// FOX SCOUT · OSINT SELF-CHECK</div>
+        <h2>找出你自己暴露在<em>网络</em>上的每一寸痕迹</h2>
+        <p>六维足迹侦察 · 社工风险推演 · 隐私防护报告 —— 比人肉搜索工具更强的个人数字足迹自查平台</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-head">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="title">fox-scout — 侦察终端 zsh</span>
+      </div>
+      <div class="term-body">
+        <div class="cmd-line"><b>fox@scout</b> ~ % ./scout --start <span class="caret"></span></div>
+        <div class="cmd-line" style="margin-bottom:18px">输入你自己的邮箱 / 手机号 / 用户名，启动数字足迹侦察。所有分析在本地完成，数据不会上传。</div>
+        <div class="input-row">
+          <div class="input-wrap" style="flex:2">
+            <label>EMAIL / PHONE / USERNAME</label>
+            <input id="target" placeholder="例如 test@example.com 或 13800138000" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="input-wrap" style="flex:1">
+            <label>侦察类型</label>
+            <select id="mode" style="width:100%;font-family:var(--mono);font-size:14px;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;outline:none;min-height:46px">
+              <option value="full">六维全量侦察</option>
+              <option value="breach">仅泄露自查</option>
+            </select>
+          </div>
+          <button class="btn" id="scan-btn">启动侦察</button>
+        </div>
+        <div class="hint-line" id="term-hint">
+          <span class="ok">[i]</span> 演示引擎已就绪 · 支持邮箱 / 手机号 / 用户名 / 社交账号混合输入 · 可输入多个（用空格或逗号分隔）
+        </div>
+      </div>
+    </div>
+
+    <!-- 能力矩阵 -->
+    <div class="section-title"><span class="bar"></span><h3>为什么比普通 OSINT 工具更强</h3><span class="sub">WHY FOX SCOUT</span></div>
+    <div class="grid-3">
+      <div class="card"><h4><span class="ic">◎</span>六维足迹模型</h4>
+        <p style="font-size:12px;color:#c8d6f0;line-height:1.9">不止查资料 —— 从账号暴露、密码习惯、公开资料、社交痕迹、位置暴露、设备指纹六个维度交叉建模，量化你的数字暴露面。</p>
+      </div>
+      <div class="card"><h4><span class="ic">⚔</span>社工攻击推演</h4>
+        <p style="font-size:12px;color:#c8d6f0;line-height:1.9">内置 6 类主流社工攻击手法库：冒充客服、撞库、钓鱼、伪基站、WiFi 嗅探、AI 换声诈骗，逐类给出防守要点。</p>
+      </div>
+      <div class="card"><h4><span class="ic">✓</span>一键防护报告</h4>
+        <p style="font-size:12px;color:#c8d6f0;line-height:1.9">按你的暴露面自动生成分级行动清单（P0 紧急 / P1 重要 / P2 建议），逐条可勾选完成，随时生成报告。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 视图：分析报告 ===== -->
+  <section class="view" id="v-report">
+    <div id="report-empty" style="padding:40px 0;text-align:center">
+      <div style="font-size:40px;margin-bottom:14px">🛰</div>
+      <div style="font-size:15px;letter-spacing:2px;color:var(--dim)">尚未生成侦察报告</div>
+      <div style="font-size:12px;color:var(--dim);margin-top:10px;letter-spacing:1px">请先在「侦察终端」输入你的邮箱 / 手机号 / 用户名</div>
+      <button class="btn ghost small" style="margin-top:20px" data-goto="v-term">去侦察</button>
+    </div>
+    <div id="report-body" style="display:none">
+      <div class="section-title"><span class="bar"></span><h3>综合暴露评分</h3><span class="sub" id="report-target-label">TARGET</span></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="big-score">
+            <div class="num" id="risk-num">0</div>
+            <div class="lbl">暴露风险指数 · EXPOSURE INDEX</div>
+            <div class="verdict" id="risk-verdict">—</div>
+          </div>
+        </div>
+        <div class="card">
+          <h4><span class="ic">◎</span>六维足迹雷达</h4>
+          <div class="chart" id="radar-chart"></div>
+        </div>
+      </div>
+
+      <div class="section-title"><span class="bar"></span><h3>六维明细</h3><span class="sub">DIMENSION DETAIL</span></div>
+      <div class="card">
+        <div id="dim-scores"></div>
+      </div>
+
+      <div class="section-title"><span class="bar"></span><h3>泄露事件自查</h3><span class="sub">BREACH SELF-CHECK · 演示</span></div>
+      <div class="grid-2">
+        <div class="card">
+          <h4><span class="ic">🗄</span>命中记录</h4>
+          <div id="breach-list" style="font-size:12px;color:var(--dim);line-height:1.8">—</div>
+        </div>
+        <div class="card">
+          <h4><span class="ic">◔</span>泄露来源分布</h4>
+          <div class="chart small" id="breach-chart"></div>
+        </div>
+      </div>
+
+      <div class="section-title"><span class="bar"></span><h3>可被利用的信息点</h3><span class="sub">EXPLOIT SURFACE</span></div>
+      <div class="card">
+        <div id="exploit-chips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 视图：攻击手法 ===== -->
+  <section class="view" id="v-attack">
+    <div class="section-title"><span class="bar"></span><h3>六大社工攻击手法</h3><span class="sub">SOCIAL ENGINEERING PLAYBOOK</span></div>
+    <p style="font-size:12px;color:var(--dim);letter-spacing:1px;line-height:1.9;margin-bottom:16px">攻击者如何利用你暴露的信息实施诈骗 —— 认识手法，才能识破套路。以下为安全科普内容。</p>
+    <div class="attack-grid" id="attack-grid"></div>
+  </section>
+
+  <!-- ===== 视图：防护指南 ===== -->
+  <section class="view" id="v-guard">
+    <div class="section-title"><span class="bar"></span><h3>个性化防护行动清单</h3><span class="sub">ACTION CHECKLIST</span></div>
+    <p style="font-size:12px;color:var(--dim);letter-spacing:1px;line-height:1.9;margin-bottom:16px">根据你最近的侦察结果生成（未侦察时展示通用清单）。点击条目标记完成，进度实时保存。</p>
+    <div class="grid-2">
+      <div class="card">
+        <h4><span class="ic">☑</span>行动清单</h4>
+        <div class="check-list" id="check-list"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn small" id="gen-report">生成防护报告</button>
+          <button class="btn ghost small" id="reset-checks">重置清单</button>
+        </div>
+      </div>
+      <div class="card">
+        <h4><span class="ic">📄</span>防护报告预览</h4>
+        <pre id="report-pre" style="font-family:var(--mono);font-size:11px;color:var(--green);line-height:1.9;white-space:pre-wrap;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px;height:420px;overflow:auto">// 完成清单中的项目后生成报告</pre>
+        <button class="btn ghost small" style="margin-top:12px" id="copy-report">复制报告</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 合规说明 ===== -->
+  <div class="comply">
+    <span class="ic">⚠</span>
+    <div><b>合规声明：</b>本工具仅用于分析<b>你自己输入</b>的信息，用于个人信息暴露面自查与网络安全科普。<b>所有分析在本地浏览器完成，不上传任何数据</b>；泄露自查为演示算法，不代表真实泄露事件，不提供任何第三方个人信息查询能力。请勿用于非法获取他人信息，违者后果自负。</div>
+  </div>
+
+  <footer>
+    <b>FOX SCOUT</b> · 佛伯乐数字足迹侦察兵<br>
+    开源项目 · 安全教育用途 · 数据不出浏览器
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+ * FOX SCOUT · 数字足迹侦察引擎（本地演示算法）
+ * 所有分析在浏览器本地完成，不上传任何数据
+ * ============================================================ */
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ---------- 工具 ---------- */
+function hashStr(s){
+  let h=5381;
+  for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; }
+  return h;
+}
+function hashRange(s,min,max){ return min + (hashStr(s)%(max-min+1)); }
+function esc(s){ return String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+/* ---------- 输入解析 ---------- */
+function parseTargets(raw){
+  const items = raw.split(/[\s,，;；]+/).filter(Boolean);
+  const out=[];
+  for(const it of items){
+    const t=it.trim();
+    if(!t) continue;
+    let type='username';
+    if(/^1[3-9]\d{9}$/.test(t)) type='phone';
+    else if(/^[\w.+-]+@[\w-]+(\.[\w-]+)+$/.test(t)) type='email';
+    else if(t.includes('@')) type='handle';
+    else if(/^\d{6,11}$/.test(t)) type='numeric';
+    out.push({raw:t,type});
+  }
+  return out;
+}
+const AREA_HINT={
+  '130':'北京','131':'北京','132':'北京','133':'北京','134':'北京','135':'北京','136':'北京','137':'北京','138':'北京','139':'北京',
+  '150':'上海','151':'上海','152':'上海','153':'上海','155':'上海','156':'上海','157':'上海','158':'上海','159':'上海','186':'北京','188':'北京',
+  '139':'北京','145':'中国联通','147':'中国移动','148':'中国移动','166':'中国联通','198':'中国电信','199':'中国电信'
+};
+function phoneAreaHint(p){ return AREA_HINT[p.slice(0,3)]||AREA_HINT[p.slice(0,2)]||'未知归属地'; }
+
+/* ---------- 六维评分 ---------- */
+const DIMS=[
+  {key:'account', name:'账号暴露',   ic:'＠', desc:'你的账号标识在网络上的可定位程度'},
+  {key:'password',name:'密码习惯',   ic:'🔑', desc:'密码复用与弱密码特征的暴露风险'},
+  {key:'profile', name:'公开资料',   ic:'📇', desc:'个人资料中可拼凑出身份的信息量'},
+  {key:'social',  name:'社交痕迹',   ic:'💬', desc:'社交账号与公开互动的痕迹密度'},
+  {key:'location',name:'位置暴露',   ic:'📍', desc:'手机归属地 / 地理信息暴露程度'},
+  {key:'device',  name:'设备指纹',   ic:'🖥', desc:'设备特征与登录环境的可追踪性'},
+];
+function calcDims(targets){
+  const n=targets.length;
+  const types=targets.map(t=>t.type);
+  // 账号暴露：输入数量 + 类型多样性 + 标识可定位性
+  let account = Math.min(100, 20 + n*14 + new Set(types).size*10);
+  types.forEach(t=>{ if(t==='phone')account+=8; if(t==='email')account+=5; });
+  // 密码习惯：演示基线 + 输入特征修正（连续数字/生日特征/年份）
+  let password = 30;
+  targets.forEach(t=>{
+    const s=t.raw;
+    if(/19\d{2}|20\d{2}/.test(s)) password+=12;      // 含年份
+    if(/\d{4,}/.test(s.replace(/^1[3-9]\d{9}$/,''))) password+=8; // 含长数字串
+    if(/[a-z]+[0-9]+/i.test(s) && s.length<12) password+=6;      // 短混合串疑似弱密码
+  });
+  // 公开资料：用户名长度 + 生日/姓名特征
+  let profile=15;
+  targets.forEach(t=>{
+    const s=t.raw;
+    if(t.type==='username'){
+      if(s.length>=6) profile+=10;
+      if(/\d{2,}/.test(s)) profile+=8;               // 含数字（生日/年份）
+      if(/[a-z]{3,}/i.test(s)) profile+=6;           // 含字母（姓名拼音）
+    }
+    if(t.type==='email'){
+      const u=s.split('@')[0];
+      if(/\d/.test(u)) profile+=8;
+      if(/[a-z]{3,}/i.test(u)) profile+=6;
+    }
+  });
+  // 社交痕迹：handle/email 数量 + 互动符号
+  let social=10;
+  targets.forEach(t=>{
+    if(t.type==='handle') social+=25;
+    if(t.type==='email') social+=12;
+  });
+  // 位置暴露：手机号归属地 + 地理词
+  let location=12;
+  targets.forEach(t=>{
+    if(t.type==='phone') location+=45;
+    const s=t.raw;
+    if(/beijing|shanghai|sz|gz|cd|hz|wuhan|武汉|北京|上海|广州|深圳|杭州|成都/.test(s.toLowerCase())) location+=20;
+  });
+  // 设备指纹：演示基线
+  let device=22 + n*6;
+  // 收敛
+  const clamp=v=>Math.max(4,Math.min(98,Math.round(v)));
+  return {
+    account:clamp(account), password:clamp(password), profile:clamp(profile),
+    social:clamp(social), location:clamp(location), device:clamp(device)
+  };
+}
+/* ---------- 综合评分 ---------- */
+function riskScore(dims){
+  const w={account:.2,password:.2,profile:.16,social:.14,location:.15,device:.15};
+  let s=0;
+  for(const k in w) s+=dims[k]*w[k];
+  return Math.round(s);
+}
+function verdict(v){
+  if(v>=70) return {cls:'bad', txt:'高危暴露：你的数字足迹足够被定向社工攻击，建议立即收敛公开信息并强化账号安全。'};
+  if(v>=40) return {cls:'warn', txt:'中危暴露：存在可拼凑的个人信息链，建议按防护清单逐项加固薄弱环节。'};
+  return {cls:'good', txt:'低危暴露：暴露面整体可控，保持良好习惯并定期复查即可。'};
+}
+/* ---------- 泄露事件演示库 ---------- */
+const BREACH_EVENTS=[
+  {name:'某知识问答社区', year:2016, desc:'用户名 / 邮箱 / 加密密码泄露'},
+  {name:'某邮箱服务商',   year:2015, desc:'邮箱账号与密码泄露'},
+  {name:'某程序员社区',   year:2011, desc:'明文密码数据库泄露'},
+  {name:'某铁路购票平台', year:2014, desc:'账号与身份信息泄露'},
+  {name:'某国际社交平台', year:2019, desc:'手机号关联账号数据泄露'},
+  {name:'某职场社交平台', year:2021, desc:'用户资料库泄露'},
+  {name:'某微博平台',     year:2020, desc:'手机号与账号关联数据泄露'},
+  {name:'某电商平台',     year:2021, desc:'订单信息与手机号泄露'},
+];
+function breachCheck(targets){
+  const hits=[];
+  for(const t of targets){
+    const key = t.raw.toLowerCase();
+    const h = hashStr(key);
+    const cnt = h % 5;                       // 0-4 次命中（演示）
+    if(cnt>0){
+      const picked=[];
+      const used=new Set();
+      for(let i=0;i<cnt;i++){
+        let idx=hashRange(key+'|'+i,0,BREACH_EVENTS.length-1);
+        if(used.has(idx)){ idx=(idx+1)%BREACH_EVENTS.length; }
+        used.add(idx);
+        picked.push(BREACH_EVENTS[idx]);
+      }
+      hits.push({target:t.raw, events:picked});
+    }
+  }
+  return hits;
+}
+/* ---------- 可被利用信息点 ---------- */
+function exploitChips(targets,dims){
+  const chips=[];
+  for(const t of targets){
+    if(t.type==='phone') chips.push(`手机号 ${esc(t.raw)}（${phoneAreaHint(t.raw)}）`);
+    else if(t.type==='email') chips.push(`邮箱 ${esc(t.raw)}（可定位社交账号）`);
+    else if(t.type==='handle') chips.push(`社交句柄 ${esc(t.raw)}`);
+    else if(t.type==='numeric') chips.push(`数字串 ${esc(t.raw)}（疑似账号/年份）`);
+    else chips.push(`用户名 ${esc(t.raw)}`);
+  }
+  if(dims.password>=60) chips.push('弱密码 / 密码复用特征');
+  if(dims.profile>=55) chips.push('资料含生日或年份特征');
+  if(dims.location>=50) chips.push('地理位置归属可定位');
+  return chips.slice(0,8);
+}
+/* ---------- 攻击手法库 ---------- */
+const ATTACKS=[
+  {no:'01', name:'冒充客服诈骗', icon:'🎧',
+   how:'攻击者用你泄露的订单号 / 手机号 / 收货地址冒充平台客服，声称“退款 / 注销会员 / 理赔”，诱导你提供验证码或下载屏幕共享软件，套取支付信息。',
+   guard:'任何主动来电要求提供验证码、转账、共享屏幕的“客服”一律挂断；退款走官方 App 内渠道；验证码是最后防线，永远不要告诉任何人。'},
+  {no:'02', name:'撞库攻击', icon:'⚔',
+   how:'攻击者拿你泄露的账号密码组合，批量尝试登录其他平台。只要你在多个网站复用同一密码，一个平台泄露 = 所有平台沦陷。',
+   guard:'每个平台使用独立高强度密码，用密码管理器统一生成与保存；开启两步验证（2FA），即使密码泄露也无法登录。'},
+  {no:'03', name:'钓鱼链接 / 二维码', icon:'🎣',
+   how:'伪装成银行、快递、社保等官方短信或邮件，附带仿冒链接或二维码，页面与官方几乎一致，诱导你输入账号密码或扫码授权。',
+   guard:'不点击陌生短信 / 邮件中的链接，不扫来路不明的二维码；重要网址手动输入或从官方 App 进入；输入账号前核对域名拼写。'},
+  {no:'04', name:'伪基站 / 短信嗅探', icon:'📡',
+   how:'攻击者用伪基站劫持周边手机信号，批量发送诈骗短信或截获短信验证码，配合泄露的账号信息实施盗刷。',
+   guard:'为手机号开启 VoLTE / 加密通道并留意信号异常；支付类短信验证码尽量改用 App 内动态口令；夜间开启飞行模式可减少嗅探窗口。'},
+  {no:'05', name:'公共 WiFi 嗅探', icon:'📶',
+   how:'在商场 / 咖啡厅架设同名“免费 WiFi”，劫持你的流量，窃取未加密的登录口令、聊天记录与支付信息。',
+   guard:'不连接无密码 / 来源不明的公共 WiFi；连接公共网络时不登录网银、不输入密码；长期开启系统 VPN 加密流量。'},
+  {no:'06', name:'AI 换声 / 换脸诈骗', icon:'🎭',
+   how:'攻击者用公开的语音 / 视频素材训练 AI，伪造你亲友的声音或面孔，打电话“借钱”“代付”“转账”，声音和画面几乎以假乱真。',
+   guard:'涉及转账务必用其他渠道二次确认（视频真人验证码、当面确认、家人共同电话）；少公开发布含清晰面孔与声音的视频；为亲友设置专属暗号。'},
+];
+/* ---------- 防护清单 ---------- */
+function buildChecklist(dims){
+  const list=[];
+  const P0=[]; // 紧急
+  const P1=[]; // 重要
+  const P2=[]; // 建议
+  P0.push('为所有邮箱 / 网银 / 社交账号开启两步验证（2FA），优先使用身份验证器 App 而非短信验证码');
+  if(dims.password>=60) P0.push('立即修改所有疑似复用密码的账号，改用密码管理器生成 16 位以上独立随机密码');
+  if(dims.location>=50) P0.push('关闭外卖 / 快递 / 社交平台中的默认收货地址展示与位置水印，移除含家庭住址的公开资料');
+  P0.push('检查邮箱与手机号的“找回密码”绑定手机是否仍为自己持有，及时解绑废弃手机号');
+  P1.push('关闭社交平台“手机号 / 邮箱可被搜索到”选项，限制陌生人查看动态与资料');
+  P1.push('为重要账号单独使用专用邮箱，不与其他平台混用');
+  if(dims.profile>=55) P1.push('清理公开资料中的生日、年份、学校、工作单位等可拼凑身份的信息');
+  P1.push('开启“登录设备管理”，定期检查并移除陌生登录设备');
+  P2.push('为社交账号设置私密 / 仅好友可见，删除含门牌号、工牌、证件照的公开内容');
+  P2.push('安装系统级安全补丁与官方杀毒软件，不安装来源不明的 APK / 破解软件');
+  P2.push('为家庭成员讲解“验证码不透露 + 转账二次确认”原则，约定专属暗号');
+  P2.push('每季度执行一次本工具侦察，检查新增暴露面');
+  return {P0,P1,P2};
+}
+/* ============================================================
+ * JS_PART2：可视化与交互
+ * ============================================================ */
+
+/* ---------- 状态 ---------- */
+let STATE={ targets:[], dims:null, score:0, checklist:{P0:[],P1:[],P2:[]}, done:new Set() };
+try{ const s=JSON.parse(localStorage.getItem('fox_done')||'[]'); STATE.done=new Set(s); }catch(e){}
+
+/* ---------- 导航 ---------- */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    tab.classList.add('on');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    const v=$(''+tab.dataset.view);
+    if(v) v.classList.add('on');
+    window.scrollTo({top:0});
+    setTimeout(()=>{ if(radarChart) radarChart.resize(); if(breachChart) breachChart.resize(); },120);
+  });
+});
+document.querySelectorAll('[data-goto]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.querySelector('.tab[data-view="'+b.dataset.goto+'"]').classList.add('on');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    $(''+b.dataset.goto).classList.add('on');
+  });
+});
+
+/* ---------- 图表 ---------- */
+let radarChart=null, breachChart=null;
+function initCharts(){
+  const rc=$('radar-chart'), bc=$('breach-chart');
+  if(rc && !radarChart) radarChart=echarts.init(rc);
+  if(bc && !breachChart) breachChart=echarts.init(bc);
+}
+function renderRadar(dims){
+  if(!radarChart) initCharts();
+  radarChart.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'item'},
+    radar:{
+      indicator:[
+        {name:'账号暴露',max:100},{name:'密码习惯',max:100},{name:'公开资料',max:100},
+        {name:'社交痕迹',max:100},{name:'位置暴露',max:100},{name:'设备指纹',max:100}
+      ],
+      radius:'62%',
+      shape:'polygon',
+      splitNumber:4,
+      axisName:{color:'#7c8db5',fontSize:11,fontFamily:'JetBrains Mono,monospace'},
+      splitLine:{lineStyle:{color:'rgba(0,229,255,.15)'}},
+      splitArea:{areaStyle:{color:['rgba(0,229,255,.02)','rgba(10,14,26,.4)']}},
+      axisLine:{lineStyle:{color:'rgba(0,229,255,.2)'}}
+    },
+    series:[{
+      type:'radar',
+      data:[{value:[dims.account,dims.password,dims.profile,dims.social,dims.location,dims.device],
+        name:'暴露指数',symbol:'circle',symbolSize:5,
+        lineStyle:{color:'#00e5ff',width:2},
+        itemStyle:{color:'#ff2e97'},
+        areaStyle:{color:'rgba(0,229,255,.28)'}}]
+    }]
+  });
+}
+function renderBreachChart(hits){
+  if(!breachChart) initCharts();
+  if(!hits.length){
+    breachChart.clear();
+    breachChart.setOption({title:{text:'未命中任何泄露事件',left:'center',top:'middle',textStyle:{color:'#7c8db5',fontSize:13,fontWeight:'normal'}}});
+    return;
+  }
+  const byEvent={};
+  hits.forEach(h=>h.events.forEach(e=>{ byEvent[e.name]=(byEvent[e.name]||0)+1; }));
+  const data=Object.entries(byEvent).map(([name,v])=>({name,value:v}));
+  breachChart.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'item'},
+    series:[{
+      type:'pie',radius:['42%','70%'],center:['50%','50%'],
+      label:{color:'#c8d6f0',fontSize:11},
+      itemStyle:{borderColor:'#0a0e1a',borderWidth:2},
+      data:data.map((d,i)=>({...d,
+        itemStyle:{color:['#00e5ff','#ff2e97','#ffd60a','#a855f7','#00ff9d','#ff9f43'][i%6]}}))
+    }]
+  });
+}
+
+/* ---------- 渲染报告 ---------- */
+function renderReport(){
+  const {targets,dims,score}=STATE;
+  $('report-empty').style.display='none';
+  $('report-body').style.display='block';
+  $('report-target-label').textContent = 'TARGET: '+(targets.map(t=>t.raw).join(' , ').slice(0,32)||'-');
+  // 综合分
+  const v=verdict(score);
+  const num=$('risk-num');
+  num.textContent=score;
+  num.className='num '+v.cls;
+  $('risk-verdict').textContent=v.txt;
+  // 雷达
+  renderRadar(dims);
+  // 六维明细
+  const scoreCls=s=> s>=60?'bad' : s>=35?'warn':'good';
+  $('dim-scores').innerHTML=DIMS.map(d=>{
+    const s=dims[d.key];
+    return `<div class="score-row">
+      <div class="name">${d.ic} ${d.name}</div>
+      <div class="score-bar"><i class="${s>=60?'high':s>=35?'mid':''}" style="width:${s}%"></i></div>
+      <div class="val ${scoreCls(s)}">${s}</div>
+    </div>`;
+  }).join('');
+  // 泄露自查
+  const hits=breachCheck(targets);
+  if(!hits.length){
+    $('breach-list').innerHTML='<span class="badge safe">未命中</span> 演示库中未发现与输入标识匹配的泄露事件。';
+  }else{
+    $('breach-list').innerHTML=hits.map(h=>
+      `<div style="margin-bottom:10px"><span class="badge leak">命中</span> <b style="color:var(--txt)">${esc(h.target)}</b></div>`+
+      h.events.map(e=>`<div style="padding-left:16px;color:#c8d6f0;margin-bottom:4px">· ${esc(e.name)}（${e.year}）— ${esc(e.desc)}</div>`).join('')
+    ).join('')+`<div style="margin-top:10px;font-size:11px;color:var(--dim)">* 演示事件库，不代表真实泄露</div>`;
+  }
+  renderBreachChart(hits);
+  // 利用点
+  const chips=exploitChips(targets,dims);
+  $('exploit-chips').innerHTML = chips.length
+    ? '<div class="chips">'+chips.map(c=>`<span class="chip hit">${c}</span>`).join('')+'</div>'
+    : '<span style="color:var(--dim)">—</span>';
+}
+
+/* ---------- 侦察主流程 ---------- */
+$('scan-btn').addEventListener('click', runScan);
+$('target').addEventListener('keydown', e=>{ if(e.key==='Enter') runScan(); });
+function runScan(){
+  const raw=$('target').value.trim();
+  if(!raw){
+    $('term-hint').innerHTML='<span class="bad">[x]</span> 请输入邮箱 / 手机号 / 用户名后再启动侦察。';
+    return;
+  }
+  const targets=parseTargets(raw);
+  if(!targets.length){
+    $('term-hint').innerHTML='<span class="bad">[x]</span> 无法识别输入，请输入邮箱（xx@xx.com）/ 11 位手机号 / 用户名。';
+    return;
+  }
+  const dims=calcDims(targets);
+  const score=riskScore(dims);
+  STATE={targets,dims,score,checklist:buildChecklist(dims),done:STATE.done};
+  // 先切到报告页（容器可见后再初始化图表）
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelector('.tab[data-view="v-report"]').classList.add('on');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  $('v-report').classList.add('on');
+  renderReport();
+  renderChecklist();
+  window.scrollTo({top:0});
+  $('term-hint').innerHTML=`<span class="ok">[✓]</span> 侦察完成：识别 ${targets.length} 个标识（${targets.map(t=>t.type).join(' / ')}）· 暴露指数 ${score} · 报告已生成`;
+}
+
+/* ---------- 攻击手法库 ---------- */
+$('attack-grid').innerHTML=ATTACKS.map(a=>`
+  <div class="attack-card">
+    <div class="no">手法 ${a.no} · HOW THEY ATTACK</div>
+    <h4><span style="font-size:18px">${a.icon}</span>${a.name}</h4>
+    <p>${a.how}</p>
+    <div class="guard"><b>防守：</b>${a.guard}</div>
+  </div>`).join('');
+
+/* ---------- 防护清单 ---------- */
+function renderChecklist(){
+  const cl=STATE.checklist;
+  const items=[...cl.P0.map(t=>({t,p:'P0'})),...cl.P1.map(t=>({t,p:'P1'})),...cl.P2.map(t=>({t,p:'P2'}))];
+  $('check-list').innerHTML=items.map((it,i)=>{
+    const id='ck'+i, done=STATE.done.has(id);
+    return `<div class="check-item ${done?'done':''}" data-id="${id}" data-txt="${esc(it.t)}" data-p="${it.p}">
+      <span class="cb">${done?'✓':''}</span>
+      <span class="txt"><span class="prio ${it.p}">${it.p}</span>${it.t}</span>
+    </div>`;
+  }).join('');
+}
+$('check-list').addEventListener('click',e=>{
+  const item=e.target.closest('.check-item');
+  if(!item) return;
+  const id=item.dataset.id;
+  if(STATE.done.has(id)) STATE.done.delete(id); else STATE.done.add(id);
+  item.classList.toggle('done',STATE.done.has(id));
+  item.querySelector('.cb').textContent=STATE.done.has(id)?'✓':'';
+  try{ localStorage.setItem('fox_done',JSON.stringify([...STATE.done])); }catch(e2){}
+});
+$('reset-checks').addEventListener('click',()=>{
+  STATE.done.clear();
+  try{ localStorage.removeItem('fox_done'); }catch(e){}
+  renderChecklist();
+  $('report-pre').textContent='// 已重置清单';
+});
+function genReportText(){
+  const {targets,score,dims}=STATE;
+  const v=verdict(score);
+  const lines=[];
+  lines.push('==============================================');
+  lines.push('  FOX SCOUT 个人数字足迹防护报告');
+  lines.push('  生成时间: '+new Date().toLocaleString('zh-CN'));
+  lines.push('==============================================');
+  lines.push('');
+  lines.push('【侦察对象】');
+  targets.forEach(t=>lines.push('  · '+t.raw+'（'+t.type+'）'));
+  lines.push('');
+  lines.push('【综合暴露指数】'+score+'/100 · '+v.txt);
+  lines.push('');
+  lines.push('【六维明细】');
+  DIMS.forEach(d=>lines.push('  '+d.name.padEnd(6)+' : '+dims[d.key]));
+  lines.push('');
+  lines.push('【行动清单】');
+  const items=[...STATE.checklist.P0.map(t=>({t,p:'P0'})),...STATE.checklist.P1.map(t=>({t,p:'P1'})),...STATE.checklist.P2.map(t=>({t,p:'P2'}))];
+  items.forEach((it,i)=>{
+    const id='ck'+i;
+    lines.push('  ['+(STATE.done.has(id)?'x':' ')+'] ['+it.p+'] '+it.t);
+  });
+  lines.push('');
+  lines.push('【合规声明】');
+  lines.push('  本报告由本地演示算法生成，仅用于个人信息安全自查与科普，');
+  lines.push('  不代表真实泄露事件，不构成任何法律与安全承诺。');
+  lines.push('==============================================');
+  return lines.join('\n');
+}
+$('gen-report').addEventListener('click',()=>{
+  if(!STATE.targets.length){
+    $('report-pre').textContent='// 请先在「侦察终端」输入信息生成个性化报告';
+    return;
+  }
+  $('report-pre').textContent=genReportText();
+});
+$('copy-report').addEventListener('click',async()=>{
+  const txt=$('report-pre').textContent;
+  try{ await navigator.clipboard.writeText(txt); $('report-pre').textContent='// 已复制到剪贴板'; }
+  catch(e){ $('report-pre').textContent='// 复制失败，请手动选择复制'; }
+});
+renderChecklist();
+</script>
+</body>
+</html>
